@@ -20,6 +20,7 @@ const Chatbot = () => {
   const [isListening, setIsListening] = useState(false);
   const [usedVoiceInput, setUsedVoiceInput] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [speechTimeout, setSpeechTimeout] = useState(null);
   
   // Order placement state
   const [orderPlacementState, setOrderPlacementState] = useState(null); // null | 'confirming_items' | 'confirming_address' | 'placing_order'
@@ -120,6 +121,12 @@ const Chatbot = () => {
       }
       if (synthRef.current) {
         synthRef.current.cancel();
+        setIsSpeaking(false);
+      }
+      // Clear any pending speech timeout
+      if (speechTimeout) {
+        clearTimeout(speechTimeout);
+        setSpeechTimeout(null);
       }
     };
   }, []);
@@ -133,8 +140,14 @@ const Chatbot = () => {
   const speakText = (text) => {
     if (!synthRef.current) return;
 
+    // Clear any existing timeout
+    if (speechTimeout) {
+      clearTimeout(speechTimeout);
+    }
+
     // Cancel any ongoing speech
     synthRef.current.cancel();
+    setIsSpeaking(false);
 
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = 'en-US';
@@ -142,10 +155,38 @@ const Chatbot = () => {
     utterance.pitch = 1.0;
     utterance.volume = 1.0;
 
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
+    // Set up event handlers
+    utterance.onstart = () => {
+      console.log('Speech started');
+      setIsSpeaking(true);
+    };
 
+    utterance.onend = () => {
+      console.log('Speech ended naturally');
+      setIsSpeaking(false);
+      if (speechTimeout) {
+        clearTimeout(speechTimeout);
+        setSpeechTimeout(null);
+      }
+    };
+
+    utterance.onerror = (event) => {
+      console.error('Speech synthesis error:', event.error);
+      setIsSpeaking(false);
+      if (speechTimeout) {
+        clearTimeout(speechTimeout);
+        setSpeechTimeout(null);
+      }
+    };
+
+    // Fallback timeout in case onend doesn't fire (some browsers have issues)
+    const fallbackTimeout = setTimeout(() => {
+      console.log('Speech fallback timeout triggered - forcing isSpeaking to false');
+      setIsSpeaking(false);
+      setSpeechTimeout(null);
+    }, Math.max(text.length * 50, 3000)); // Estimate based on text length, minimum 3 seconds
+
+    setSpeechTimeout(fallbackTimeout);
     synthRef.current.speak(utterance);
   };
 
@@ -154,6 +195,12 @@ const Chatbot = () => {
     if (synthRef.current) {
       synthRef.current.cancel();
       setIsSpeaking(false);
+    }
+
+    // Clear any pending fallback timeout
+    if (speechTimeout) {
+      clearTimeout(speechTimeout);
+      setSpeechTimeout(null);
     }
   };
 
