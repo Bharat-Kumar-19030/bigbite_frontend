@@ -56,7 +56,12 @@ const Register = () => {
 
       const data = await response.json();
 
-      if (response.ok) {        
+      if (response.ok) {
+        // Store token in localStorage
+        if (data.token) {
+          localStorage.setItem('bigbite_token', data.token);
+        }
+        
         toast.success('Registration successful!');
         await checkAuth();
         setShowSignupModal(false);

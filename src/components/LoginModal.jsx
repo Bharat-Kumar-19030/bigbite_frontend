@@ -40,6 +40,11 @@ const Login = () => {
 
       const data = await result.json();
 
+      // Store token in localStorage
+      if (data.token) {
+        localStorage.setItem('bigbite_token', data.token);
+      }
+
       toast.success('Login successful!');
       await checkAuth();
       setShowLoginModal(false);

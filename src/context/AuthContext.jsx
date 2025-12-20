@@ -16,8 +16,16 @@ export const AuthProvider=({children})=>{
     }, [])
     const checkAuth=async()=>{
         try{
+            const token = localStorage.getItem('bigbite_token');
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             const res=await fetch(`${SERVER_URL}/api/auth/me`,{
                 credentials:"include",
+                headers,
             })
             if(res.ok){
                 const data=await res.json()
@@ -41,6 +49,7 @@ export const AuthProvider=({children})=>{
             credentials:"include",
         })
         setuser(null)
+        localStorage.removeItem('bigbite_token');
     }catch(err){
         console.error("Logout failed:",err)
     }
