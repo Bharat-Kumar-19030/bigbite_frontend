@@ -30,35 +30,6 @@ const Chatbot = () => {
   const recognitionRef = useRef(null);
   const synthRef = useRef(window.speechSynthesis);
 
-  // Multiple API keys for rate limit handling
-  const GEMINI_API_KEYS = [
-    import.meta.env.VITE_GEMINI_API_KEY,
-    import.meta.env.VITE_GEMINI_API_KEY_2,
-  ].filter(Boolean); // Remove undefined keys
-
-  const currentKeyIndexRef = useRef(0); // Use ref instead of state for immediate updates
-  
-  // Get current API URL with active key
-  const getGeminiApiUrl = (keyIndex = null) => {
-    const index = keyIndex !== null ? keyIndex : currentKeyIndexRef.current;
-    const apiKey = GEMINI_API_KEYS[index] || 'YOUR_GEMINI_API_KEY';
-    console.log(`🔑 Using API key ${index + 1}/${GEMINI_API_KEYS.length}: ${apiKey.substring(0, 20)}...`);
-    return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
-  };
-
-  // Switch to next API key
-  const switchToNextKey = () => {
-    if (GEMINI_API_KEYS.length > 1) {
-      const oldIndex = currentKeyIndexRef.current;
-      const nextIndex = (currentKeyIndexRef.current + 1) % GEMINI_API_KEYS.length;
-      currentKeyIndexRef.current = nextIndex;
-      console.log(`🔄 Switched from API key ${oldIndex + 1} to ${nextIndex + 1}`);
-      toast.success(`🔄 Switched to API key ${nextIndex + 1}`, { duration: 3000 });
-      return true;
-    }
-    return false;
-  };
-
   // Fetch user wishlists when chat opens
   useEffect(() => {
     if (isOpen && isAuthenticated) {
@@ -219,39 +190,16 @@ const Chatbot = () => {
 
   // Use AI to detect order intent and extract wishlist name
   const detectOrderIntentWithAI = async (message) => {
-    if (GEMINI_API_KEYS.length === 0) {
-      console.warn('No Gemini API keys configured');
+    try {
+      const response = await api.post('/chatbot/detect-order-intent', { message });
+      if (response.success) {
+        return response.wantsToOrder ? response.wishlistName : null;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error detecting order intent:', error);
       return null;
     }
-    
-    const wishlistNames = userWishlists.map(w => w.name).join(', ');
-    const prompt = `You are a food ordering assistant. Analyze the user's message and determine:\n1. Does the user want to place an order? (yes/no)\n2. If yes, which wishlist name are they referring to?\n\nAvailable wishlists: ${wishlistNames}\n\nUser message: "${message}"\n\nRespond in JSON format ONLY:\n{"wantsToOrder": true/false, "wishlistName": "exact wishlist name or null"}\n\nExamples:\n"order my lunch for me" -> {"wantsToOrder": true, "wishlistName": "lunch"}\n"get me dinner please" -> {"wantsToOrder": true, "wishlistName": "dinner"}\n"place the breakfast order" -> {"wantsToOrder": true, "wishlistName": "breakfast"}\n"what's the weather?" -> {"wantsToOrder": false, "wishlistName": null}`;
-    const requestBody = {
-      contents: [{ parts: [{ text: prompt }] }]
-    };
-    let attempts = 0;
-    const maxAttempts = GEMINI_API_KEYS.length;
-    while (attempts < maxAttempts) {
-      try {
-        const response = await axios.post(getGeminiApiUrl(), requestBody, {
-          headers: { 'Content-Type': 'application/json' }
-        });
-        const aiResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const result = JSON.parse(jsonMatch[0]);
-          return result.wantsToOrder ? result.wishlistName : null;
-        }
-        break;
-      } catch (error) {
-        if ((error.response?.status === 429 || error.response?.status === 403) && switchToNextKey()) {
-          attempts++;
-          continue;
-        }
-        break;
-      }
-    }
-    return null;
   };
 
   // Check if message has order keywords (pre-filter before AI call)
@@ -586,50 +534,18 @@ You can track your order from the "My Orders" section. The restaurant will start
         return;
       }
 
-      // Otherwise, use Gemini for general questions
-      if (GEMINI_API_KEYS.length === 0) {
+      // Otherwise, use backend API for general questions
+      try {
+        const response = await api.post('/chatbot/chat', { message: currentInput });
+        const aiResponse = response.success ? response.message : 'Sorry, I could not process that request.';
+
         const assistantMessage = {
           role: 'assistant',
-          content: 'Sorry, the AI assistant is currently unavailable. Please check back later or contact support.',
+          content: aiResponse,
           timestamp: new Date()
         };
-        setMessages(prev => [...prev, assistantMessage]);
-        return;
-      }
-      
-      // Simple request format for Gemini
-      const requestBody = {
-        contents: [{ parts: [{ text: `You are a helpful food delivery chatbot assistant for BigBite. Answer the user's question: ${currentInput}. Keep responses concise and friendly. If they ask about orders, tell them they can place orders by saying things like "order lunch" or "get me dinner" if they have wishlists saved.` }] }]
-      };
-      let attempts = 0;
-      const maxAttempts = GEMINI_API_KEYS.length;
-      let aiResponse = '';
-      while (attempts < maxAttempts) {
-        try {
-          const apiUrl = getGeminiApiUrl();
-          const response = await axios.post(apiUrl, requestBody, {
-            headers: { 'Content-Type': 'application/json' }
-          });
-          aiResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not process that request.';
-          break;
-        } catch (error) {
-          if ((error.response?.status === 429 || error.response?.status === 403) && switchToNextKey()) {
-            attempts++;
-            continue;
-          }
-          aiResponse = attempts >= maxAttempts - 1 ? 
-            'Sorry, the AI assistant is currently experiencing issues. Please try again later or contact support.' : 
-            'Sorry, I encountered an error. Please try again.';
-          break;
-        }
-      }
-      const assistantMessage = {
-        role: 'assistant',
-        content: aiResponse,
-        timestamp: new Date()
-      };
 
-      setMessages(prev => [...prev, assistantMessage]);
+        setMessages(prev => [...prev, assistantMessage]);
 
       // Speak response if user used voice input
       if (usedVoiceInput) {
