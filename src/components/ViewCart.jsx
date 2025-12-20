@@ -332,7 +332,7 @@ const ViewCart = () => {
       
       const response = await api.placeOrder(orderData);
 
-      if (response.data.success) {
+      if (response.success) {
         toast.success('Order placed successfully! 🎉', { id: 'place-order' });
         
         // Listen for order updates via socket
@@ -351,7 +351,7 @@ const ViewCart = () => {
       }
     } catch (error) {
       console.error('Error placing order:', error);
-      toast.error(error.response?.data?.message || 'Failed to place order. Please try again.', {
+      toast.error(error.message || 'Failed to place order. Please try again.', {
         id: 'place-order',
       });
     }
