@@ -208,10 +208,21 @@ export const AppProvider = ({ children }) => {
         return;
       }
 
+      const token = localStorage.getItem('bigbite_token');
+      if (!token) {
+        // Wait for token to be available
+        setTimeout(fetchCart, 100);
+        return;
+      }
+
       try {
+        const headers = {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        };
         const response = await fetch(`${SERVER_URL}/api/cart`, {
           method: 'GET',
-          credentials: 'include',
+          headers,
         });
         if (response.ok) {
           const data = await response.json();
@@ -248,12 +259,16 @@ export const AppProvider = ({ children }) => {
   // Add to cart
   const addToCart = async (item) => {
     try {
+      const token = localStorage.getItem('bigbite_token');
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       const response = await fetch(`${SERVER_URL}/api/cart/add`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
+        headers,
         body: JSON.stringify({
           menuItem: item._id,
           quantity: 1,
@@ -279,9 +294,14 @@ export const AppProvider = ({ children }) => {
   // Remove from cart
   const removeFromCart = async (itemId) => {
     try {
+      const token = localStorage.getItem('bigbite_token');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       const response = await fetch(`${SERVER_URL}/api/cart/remove/${itemId}`, {
         method: 'DELETE',
-        credentials: 'include',
+        headers,
       });
 
       if (!response.ok) {
@@ -307,6 +327,7 @@ export const AppProvider = ({ children }) => {
     }
 
     try {
+      const token = localStorage.getItem('bigbite_token');
       // Update cart locally first for immediate UI feedback
       setCart((prevCart) =>
         prevCart.map((item) =>
@@ -327,8 +348,8 @@ export const AppProvider = ({ children }) => {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : undefined,
         },
-        credentials: 'include',
         body: JSON.stringify({
           cart: updatedCart.map(item => ({
             menuItem: item.menuItem._id,
@@ -356,9 +377,14 @@ export const AppProvider = ({ children }) => {
   // Clear cart
   const clearCart = async () => {
     try {
+      const token = localStorage.getItem('bigbite_token');
+      const headers = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       const response = await fetch(`${SERVER_URL}/api/cart/clear`, {
         method: 'DELETE',
-        credentials: 'include',
+        headers,
       });
 
       if (!response.ok) {
