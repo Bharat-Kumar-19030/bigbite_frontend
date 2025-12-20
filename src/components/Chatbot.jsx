@@ -43,7 +43,7 @@ const Chatbot = () => {
     const index = keyIndex !== null ? keyIndex : currentKeyIndexRef.current;
     const apiKey = GEMINI_API_KEYS[index] || 'YOUR_GEMINI_API_KEY';
     console.log(`🔑 Using API key ${index + 1}/${GEMINI_API_KEYS.length}: ${apiKey.substring(0, 20)}...`);
-    return `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    return `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
   };
 
   // Switch to next API key
@@ -219,6 +219,11 @@ const Chatbot = () => {
 
   // Use AI to detect order intent and extract wishlist name
   const detectOrderIntentWithAI = async (message) => {
+    if (GEMINI_API_KEYS.length === 0) {
+      console.warn('No Gemini API keys configured');
+      return null;
+    }
+    
     const wishlistNames = userWishlists.map(w => w.name).join(', ');
     const prompt = `You are a food ordering assistant. Analyze the user's message and determine:\n1. Does the user want to place an order? (yes/no)\n2. If yes, which wishlist name are they referring to?\n\nAvailable wishlists: ${wishlistNames}\n\nUser message: "${message}"\n\nRespond in JSON format ONLY:\n{"wantsToOrder": true/false, "wishlistName": "exact wishlist name or null"}\n\nExamples:\n"order my lunch for me" -> {"wantsToOrder": true, "wishlistName": "lunch"}\n"get me dinner please" -> {"wantsToOrder": true, "wishlistName": "dinner"}\n"place the breakfast order" -> {"wantsToOrder": true, "wishlistName": "breakfast"}\n"what's the weather?" -> {"wantsToOrder": false, "wishlistName": null}`;
     const requestBody = {
@@ -239,7 +244,7 @@ const Chatbot = () => {
         }
         break;
       } catch (error) {
-        if (error.response?.status === 429 && switchToNextKey()) {
+        if ((error.response?.status === 429 || error.response?.status === 403) && switchToNextKey()) {
           attempts++;
           continue;
         }
@@ -582,6 +587,16 @@ You can track your order from the "My Orders" section. The restaurant will start
       }
 
       // Otherwise, use Gemini for general questions
+      if (GEMINI_API_KEYS.length === 0) {
+        const assistantMessage = {
+          role: 'assistant',
+          content: 'Sorry, the AI assistant is currently unavailable. Please check back later or contact support.',
+          timestamp: new Date()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+        return;
+      }
+      
       // Simple request format for Gemini
       const requestBody = {
         contents: [{ parts: [{ text: `You are a helpful food delivery chatbot assistant for BigBite. Answer the user's question: ${currentInput}. Keep responses concise and friendly. If they ask about orders, tell them they can place orders by saying things like "order lunch" or "get me dinner" if they have wishlists saved.` }] }]
@@ -598,11 +613,13 @@ You can track your order from the "My Orders" section. The restaurant will start
           aiResponse = response.data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not process that request.';
           break;
         } catch (error) {
-          if (error.response?.status === 429 && switchToNextKey()) {
+          if ((error.response?.status === 429 || error.response?.status === 403) && switchToNextKey()) {
             attempts++;
             continue;
           }
-          aiResponse = 'Sorry, I encountered an error. Please try again.';
+          aiResponse = attempts >= maxAttempts - 1 ? 
+            'Sorry, the AI assistant is currently experiencing issues. Please try again later or contact support.' : 
+            'Sorry, I encountered an error. Please try again.';
           break;
         }
       }
