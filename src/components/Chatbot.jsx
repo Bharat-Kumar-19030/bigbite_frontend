@@ -536,8 +536,11 @@ You can track your order from the "My Orders" section. The restaurant will start
 
       // Otherwise, use backend API for general questions
       try {
+        console.log('Sending message to chatbot:', currentInput);
         const response = await api.post('/chatbot/chat', { message: currentInput });
-        const aiResponse = response.success ? response.message : 'Sorry, I could not process that request.';
+        console.log('Chatbot response:', response);
+        const aiResponse = response.success && response.message ? response.message : 'Sorry, I could not process that request.';
+        console.log('AI Response:', aiResponse);
 
         const assistantMessage = {
           role: 'assistant',
@@ -554,6 +557,7 @@ You can track your order from the "My Orders" section. The restaurant will start
         }
       } catch (error) {
         console.error('Error in chat:', error);
+        console.error('Error details:', error.response?.data || error.message);
         const errorMessage = {
           role: 'assistant',
           content: 'Sorry, I encountered an error. Please try again.',
@@ -657,7 +661,9 @@ You can track your order from the "My Orders" section. The restaurant will start
 
             {/* Messages Container */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-              {messages.map((message, index) => (
+              {messages.map((message, index) => {
+                console.log('Rendering message:', index, message);
+                return (
                 <motion.div
                   key={index}
                   initial={{ opacity: 0, y: 10 }}
@@ -671,13 +677,14 @@ You can track your order from the "My Orders" section. The restaurant will start
                         : 'bg-white text-gray-800 shadow-md'
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">{message.content || 'No content'}</p>
                     <p className={`text-xs mt-1 ${message.role === 'user' ? 'text-white/70' : 'text-gray-400'}`}>
                       {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </p>
                   </div>
                 </motion.div>
-              ))}
+                );
+              })}
               
               {/* Loading indicator */}
               {isLoading && (
