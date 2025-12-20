@@ -40,13 +40,39 @@ const Chatbot = () => {
   const fetchWishlists = async () => {
     try {
       console.log('Chatbot: Fetching wishlists, isAuthenticated:', isAuthenticated);
+      console.log('Chatbot: User object:', user);
+      
+      // Check if we have a valid token
+      const token = localStorage.getItem('bigbite_token');
+      console.log('Chatbot: Token exists:', !!token);
+      
+      if (!token) {
+        console.log('Chatbot: No token found, skipping wishlist fetch');
+        return;
+      }
+      
       const response = await api.getWishlists();
       console.log('Chatbot: Wishlists response:', response);
       if (response.success) {
         setUserWishlists(response.wishlists);
+        console.log('Chatbot: Successfully loaded', response.wishlists.length, 'wishlists');
+      } else {
+        console.log('Chatbot: Wishlists response not successful:', response);
       }
     } catch (error) {
       console.error('Error fetching wishlists:', error);
+      console.error('Error details:', error.response?.data || error.message);
+      
+      // Handle authentication errors
+      if (error.message === 'Authentication required. Please log in again.' || 
+          error.response?.status === 401) {
+        console.log('Chatbot: Token is invalid or expired, clearing token');
+        localStorage.removeItem('bigbite_token');
+        setUserWishlists([]);
+        // Optionally show login prompt or redirect
+      } else {
+        setUserWishlists([]);
+      }
     }
   };
 

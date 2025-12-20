@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
+import api from '../services/api';
 
 const WishlistManager = () => {
   const { user } = useAuth();
@@ -37,16 +38,28 @@ const WishlistManager = () => {
   const fetchWishlists = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${SERVER_URL}/api/wishlist`, {
-        withCredentials: true
-      });
-
-      if (response.data.success) {
-        setWishlists(response.data.wishlists);
+      const response = await api.getWishlists();
+      
+      if (response.success) {
+        setWishlists(response.wishlists);
+      } else {
+        console.warn('Wishlists response not successful:', response);
+        setWishlists([]);
       }
     } catch (error) {
       console.error('Error fetching wishlists:', error);
-      toast.error('Failed to fetch wishlists');
+      
+      // Handle authentication errors
+      if (error.message === 'Authentication required. Please log in again.' || 
+          error.response?.status === 401) {
+        console.log('Token is invalid or expired, redirecting to login');
+        localStorage.removeItem('bigbite_token');
+        navigate('/');
+        toast.error('Session expired. Please log in again.');
+      } else {
+        toast.error('Failed to fetch wishlists');
+        setWishlists([]);
+      }
     } finally {
       setLoading(false);
     }

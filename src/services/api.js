@@ -5,8 +5,33 @@ class ApiService {
     this.baseURL = API_BASE_URL;
   }
 
+  // Check if JWT token is valid (not expired)
+  isTokenValid() {
+    const token = localStorage.getItem('bigbite_token');
+    if (!token) return false;
+
+    try {
+      // Decode JWT payload (without verification)
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      const expiry = payload.exp * 1000; // Convert to milliseconds
+      const isValid = Date.now() < expiry;
+      console.log('Token validation:', isValid ? 'Valid' : 'Expired', 'Expires:', new Date(expiry).toLocaleString());
+      return isValid;
+    } catch (error) {
+      console.error('Token validation error:', error);
+      return false;
+    }
+  }
+
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
+    
+    // Check token validity before making request
+    if (!this.isTokenValid()) {
+      console.error('API Request blocked: Invalid or expired token');
+      throw new Error('Authentication required. Please log in again.');
+    }
+    
     const config = {
       ...options,
       headers: {
