@@ -86,6 +86,14 @@ class ApiService {
       body: JSON.stringify(orderData),
     });
   }
+
+  // Generic POST method
+  async post(endpoint, data) {
+    return this.request(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
 }
 
 export default new ApiService();
