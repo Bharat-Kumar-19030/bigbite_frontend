@@ -563,6 +563,10 @@ You can track your order from the "My Orders" section. The restaurant will start
       } finally {
         setIsLoading(false);
       }
+    } catch (error) {
+      console.error('Error in sendMessage:', error);
+      setIsLoading(false);
+    }
   };
 
   // Handle input key press
