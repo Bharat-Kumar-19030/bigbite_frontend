@@ -587,7 +587,7 @@ You can track your order from the "My Orders" section. The restaurant will start
           speakText(orderResponse);
           setUsedVoiceInput(false);
         }
-        
+        setIsLoading(false);
         return;
       }
 
@@ -605,6 +605,7 @@ You can track your order from the "My Orders" section. The restaurant will start
           speakText(assistantMessage.content);
           setUsedVoiceInput(false);
         }
+        setIsLoading(false);
         
         return;
       }
