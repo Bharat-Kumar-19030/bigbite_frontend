@@ -4,6 +4,7 @@ import { useSocket } from '../contexts/SocketContext';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import api from '../services/api';
 
 const RestaurantDashboard = () => {
   const { user, checkAuth, setShowKitchenDetailsModal } = useAuth();
@@ -166,15 +167,19 @@ const RestaurantDashboard = () => {
 
   const fetchMenuItems = async () => {
     try {
-      const response = await fetch(`${SERVER_URL}/api/restaurant/menu`, {
-        credentials: 'include',
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setMenuItems(data.data || []);
+      const response = await api.getMenuItems();
+      if (response.success) {
+        setMenuItems(response.data || []);
       }
     } catch (error) {
       console.error('Error fetching menu items:', error);
+      // Handle authentication errors
+      if (error.message === 'Authentication required. Please log in again.' || 
+          error.response?.status === 401) {
+        console.log('Token is invalid or expired, redirecting to login');
+        // Optionally redirect to login
+        toast.error('Session expired. Please log in again.');
+      }
     }
   };
 
@@ -223,29 +228,24 @@ const RestaurantDashboard = () => {
     e.preventDefault();
 
     try {
-      const url = editingItem
-        ? `${SERVER_URL}/api/restaurant/menu/${editingItem._id}`
-        : `${SERVER_URL}/api/restaurant/menu`;
-
-      const response = await fetch(url, {
-        method: editingItem ? 'PUT' : 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-
-      if (response.ok) {
-        toast.success(editingItem ? 'Menu item updated!' : 'Menu item added!');
-        fetchMenuItems();
-        resetForm();
+      if (editingItem) {
+        await api.updateMenuItem(editingItem._id, formData);
+        toast.success('Menu item updated!');
       } else {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to save menu item');
+        await api.addMenuItem(formData);
+        toast.success('Menu item added!');
       }
+      
+      fetchMenuItems();
+      resetForm();
     } catch (error) {
-      toast.error(error.message);
+      console.error('Error saving menu item:', error);
+      toast.error(error.message || 'Failed to save menu item');
+      // Handle authentication errors
+      if (error.message === 'Authentication required. Please log in again.' || 
+          error.response?.status === 401) {
+        toast.error('Session expired. Please log in again.');
+      }
     }
   };
 
@@ -253,60 +253,51 @@ const RestaurantDashboard = () => {
     if (!confirm('Are you sure you want to delete this item?')) return;
 
     try {
-      const response = await fetch(`${SERVER_URL}/api/restaurant/menu/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        toast.success('Menu item deleted!');
-        fetchMenuItems();
-      }
+      await api.deleteMenuItem(id);
+      toast.success('Menu item deleted!');
+      fetchMenuItems();
     } catch (error) {
+      console.error('Error deleting menu item:', error);
       toast.error('Failed to delete menu item');
+      // Handle authentication errors
+      if (error.message === 'Authentication required. Please log in again.' || 
+          error.response?.status === 401) {
+        toast.error('Session expired. Please log in again.');
+      }
     }
   };
 
   const toggleAvailability = async (id, currentStatus) => {
     try {
-      const response = await fetch(`${SERVER_URL}/api/restaurant/menu/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({ isAvailable: !currentStatus }),
-      });
-
-      if (response.ok) {
-        toast.success(currentStatus ? 'Item marked as unavailable' : 'Item marked as available');
-        fetchMenuItems();
-      }
+      await api.updateMenuItem(id, { isAvailable: !currentStatus });
+      toast.success(currentStatus ? 'Item marked as unavailable' : 'Item marked as available');
+      fetchMenuItems();
     } catch (error) {
+      console.error('Error updating availability:', error);
       toast.error('Failed to update availability');
+      // Handle authentication errors
+      if (error.message === 'Authentication required. Please log in again.' || 
+          error.response?.status === 401) {
+        toast.error('Session expired. Please log in again.');
+      }
     }
   };
 
   const toggleKitchen = async () => {
     try {
-      const response = await fetch(`${SERVER_URL}/api/restaurant/toggle-kitchen`, {
-        method: 'PUT',
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setIsKitchenOpen(data.isKitchenOpen);
-        toast.success(data.message);
-        // Refresh user data to sync with backend
-        await checkAuth();
-      } else {
-        const errorData = await response.json();
-        toast.error(errorData.message || 'Failed to toggle kitchen status');
-      }
+      const response = await api.toggleKitchenStatus();
+      setIsKitchenOpen(response.isKitchenOpen);
+      toast.success(response.message);
+      // Refresh user data to sync with backend
+      await checkAuth();
     } catch (error) {
       console.error('Toggle kitchen error:', error);
-      toast.error('Failed to toggle kitchen status');
+      toast.error(error.message || 'Failed to toggle kitchen status');
+      // Handle authentication errors
+      if (error.message === 'Authentication required. Please log in again.' || 
+          error.response?.status === 401) {
+        toast.error('Session expired. Please log in again.');
+      }
     }
   };
 

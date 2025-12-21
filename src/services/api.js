@@ -113,11 +113,40 @@ class ApiService {
     });
   }
 
-  // Generic POST method
-  async post(endpoint, data) {
-    return this.request(endpoint, {
+  // Restaurant endpoints
+  async getMenuItems() {
+    return this.request('/restaurant/menu');
+  }
+
+  async addMenuItem(itemData) {
+    return this.request('/restaurant/menu', {
       method: 'POST',
-      body: JSON.stringify(data),
+      body: JSON.stringify(itemData),
+    });
+  }
+
+  async updateMenuItem(itemId, itemData) {
+    return this.request(`/restaurant/menu/${itemId}`, {
+      method: 'PUT',
+      body: JSON.stringify(itemData),
+    });
+  }
+
+  async deleteMenuItem(itemId) {
+    return this.request(`/restaurant/menu/${itemId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async toggleMenuItemAvailability(itemId) {
+    return this.request(`/restaurant/menu/${itemId}/toggle`, {
+      method: 'PATCH',
+    });
+  }
+
+  async toggleKitchenStatus() {
+    return this.request('/restaurant/toggle-kitchen', {
+      method: 'PUT',
     });
   }
 }
