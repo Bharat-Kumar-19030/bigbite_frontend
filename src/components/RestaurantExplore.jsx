@@ -165,7 +165,7 @@ const FoodItemCard = ({ item, restaurant }) => {
 const RestaurantExplore = () => {
   const { getFilteredRestaurants, selectedCategory, setSelectedCategory, searchQuery, userLocation, maxDistance, setMaxDistance, calculateDistance } = useApp();
   const filteredRestaurants = getFilteredRestaurants();
-  const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
+  const SERVER_URL = import.meta.env.VITE_SERVER_URL;
   
   const [realRestaurants, setRealRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
