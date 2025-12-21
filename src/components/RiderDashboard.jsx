@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useApp } from '../context/AppContext';
 import { useSocket } from '../contexts/SocketContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -41,6 +42,7 @@ const riderIcon = new L.Icon({
 
 const RiderDashboard = () => {
   const { user, loading: authLoading } = useAuth();
+  const { calculateDistance } = useApp();
   const { socket, joinRiderPool, leaveRiderPool, updateRiderLocation, acceptRiderOrder, updateOrderStatus: updateOrderStatusSocket } = useSocket();
   const navigate = useNavigate();
 
@@ -637,11 +639,36 @@ const RiderDashboard = () => {
                                 🏍️ Distance to Pickup: {order.distance} km
                               </p>
                             )}
-                            {order.distanceToCustomer && (
-                              <p className="text-sm text-purple-600 font-medium">
-                                📦 Delivery Distance: {order.distanceToCustomer} km
-                              </p>
-                            )}
+                            {(() => {
+                              // First try to use the stored distanceToCustomer (for accepted orders)
+                              if (order.distanceToCustomer && typeof order.distanceToCustomer === 'number') {
+                                return (
+                                  <p className="text-sm text-purple-600 font-medium">
+                                    📦 Delivery Distance: {order.distanceToCustomer.toFixed(1)} km
+                                  </p>
+                                );
+                              }
+                              
+                              // Calculate distance from restaurant to customer delivery address
+                              if (order.restaurant?.restaurantDetails?.address?.latitude && 
+                                  order.restaurant?.restaurantDetails?.address?.longitude &&
+                                  order.deliveryAddress?.latitude && 
+                                  order.deliveryAddress?.longitude) {
+                                const distance = calculateDistance(
+                                  order.restaurant.restaurantDetails.address.latitude,
+                                  order.restaurant.restaurantDetails.address.longitude,
+                                  order.deliveryAddress.latitude,
+                                  order.deliveryAddress.longitude
+                                );
+                                return (
+                                  <p className="text-sm text-purple-600 font-medium">
+                                    📦 Delivery Distance: {distance.toFixed(1)} km
+                                  </p>
+                                );
+                              }
+                              
+                              return null;
+                            })()}
                             {order.riderEarnings && (
                               <p className="text-sm text-green-600 font-bold">
                                 💰 Your Earnings: ₹{order.riderEarnings}
@@ -869,9 +896,28 @@ const RiderDashboard = () => {
                     <div className="bg-green-50 p-4 rounded-lg">
                       <p className="text-sm text-gray-600 mb-1">Distance to Customer</p>
                       <p className="text-lg font-semibold text-green-600">
-                        {viewingOrder.distanceToCustomer && typeof viewingOrder.distanceToCustomer === 'number' 
-                          ? `${viewingOrder.distanceToCustomer.toFixed(1)} km` 
-                          : 'N/A'}
+                        {(() => {
+                          // First try to use the stored distanceToCustomer (for accepted orders)
+                          if (viewingOrder.distanceToCustomer && typeof viewingOrder.distanceToCustomer === 'number') {
+                            return `${viewingOrder.distanceToCustomer.toFixed(1)} km`;
+                          }
+                          
+                          // Calculate distance from restaurant to customer delivery address
+                          if (viewingOrder.restaurant?.restaurantDetails?.address?.latitude && 
+                              viewingOrder.restaurant?.restaurantDetails?.address?.longitude &&
+                              viewingOrder.deliveryAddress?.latitude && 
+                              viewingOrder.deliveryAddress?.longitude) {
+                            const distance = calculateDistance(
+                              viewingOrder.restaurant.restaurantDetails.address.latitude,
+                              viewingOrder.restaurant.restaurantDetails.address.longitude,
+                              viewingOrder.deliveryAddress.latitude,
+                              viewingOrder.deliveryAddress.longitude
+                            );
+                            return `${distance.toFixed(1)} km`;
+                          }
+                          
+                          return 'N/A';
+                        })()}
                       </p>
                     </div>
                     <div className="bg-blue-50 p-4 rounded-lg">

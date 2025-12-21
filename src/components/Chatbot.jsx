@@ -479,18 +479,18 @@ const Chatbot = () => {
             // Create detailed breakdown
             const breakdown = `🎉 Awesome! Your order has been placed successfully!
 
-📦 Order ID: #${shortOrderId}
+Order ID: #${shortOrderId}
 
-💰 Payment Breakdown:
+Payment Breakdown:
 ━━━━━━━━━━━━━━━━━━━━
-🍽️  Items Subtotal:  ₹${subtotal.toFixed(2)}
-🚚  Delivery Fee:     ₹${deliveryFee.toFixed(2)}
-📱  Platform Fee:     ₹${platformFee.toFixed(2)}
-💳  GST (5%):         ₹${gst.toFixed(2)}
+Items Subtotal:  ₹${subtotal.toFixed(2)}
+Delivery Fee:     ₹${deliveryFee.toFixed(2)}
+Platform Fee:     ₹${platformFee.toFixed(2)}
+GST (5%):         ₹${gst.toFixed(2)}
 ━━━━━━━━━━━━━━━━━━━━
-💵  Total Amount:     ₹${totalAmount.toFixed(2)}
+Total Amount:     ₹${totalAmount.toFixed(2)}
 
-📍 Payment: Cash on Delivery (COD)
+Payment: Cash on Delivery (COD)
 
 You can track your order from the "My Orders" section. The restaurant will start preparing your food soon! 🍕`;
             
