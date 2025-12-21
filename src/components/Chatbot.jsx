@@ -511,12 +511,15 @@ You can track your order from the "My Orders" section. The restaurant will start
       }
     }
 
-    // Initial order request - use AI to detect intent
-    // Pre-filter: Only use AI if message contains order keywords
-    if (!hasOrderKeywords(userInput)) {
-      return null; // Not an order request, skip AI call
+    // Initial order request - use AI to detect intent FIRST, then check wishlists
+    // Only proceed if AI confirms this is actually an order request
+    const wishlistName = await detectOrderIntentWithAI(userInput);
+    
+    if (!wishlistName) {
+      return null; // Not an order request, let it go to general AI chat
     }
 
+    // User wants to order, now check prerequisites
     if (!isAuthenticated) {
       return "🔒 Please log in first to place an order through the chatbot.";
     }
@@ -524,9 +527,6 @@ You can track your order from the "My Orders" section. The restaurant will start
     if (userWishlists.length === 0) {
       return "📝 You don't have any wishlists yet. Add items to your wishlist first to place orders through the chatbot!";
     }
-
-    // Only call AI if we have order keywords AND user is authenticated
-    const wishlistName = await detectOrderIntentWithAI(userInput);
     
     if (wishlistName) {
       const matchedWishlist = findWishlistByName(wishlistName);
