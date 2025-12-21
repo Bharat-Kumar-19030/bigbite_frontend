@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { getServerURL } from '../utils/config';
 
 const AppContext = createContext();
 
@@ -13,7 +12,7 @@ export const useApp = () => {
 };
 
 export const AppProvider = ({ children }) => {
-  const SERVER_URL = getServerURL();
+  const SERVER_URL= import.meta.env.VITE_SERVER_URL || 'http://localhost:5000';
   const { user: authUser } = useAuth();
 
   const [user, setUser] = useState(null);

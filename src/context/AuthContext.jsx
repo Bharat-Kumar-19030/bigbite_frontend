@@ -1,7 +1,6 @@
 // import { response } from 'express'
 import { createContext,useState,useEffect,useContext } from 'react' 
 import toast from 'react-hot-toast'
-import { getServerURL } from '../utils/config'
 
 const AuthContext=createContext()
 export const useAuth=()=>{return useContext(AuthContext)}
@@ -11,9 +10,7 @@ export const AuthProvider=({children})=>{
     const [showLoginModal, setShowLoginModal] = useState(false);
     const [showSignupModal, setShowSignupModal] = useState(false);
     const [showKitchenDetailsModal, setShowKitchenDetailsModal] = useState(false);
-    
-    // Use dynamic server URL
-    const SERVER_URL = getServerURL();
+    const SERVER_URL=import.meta.env.VITE_SERVER_URL||"http://localhost:5000"
     useEffect(() => {
       // Check for token in URL hash (from Google OAuth)
       const hash = window.location.hash;
