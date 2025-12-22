@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useApp } from '../context/AppContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -90,6 +90,10 @@ const RiderDashboard = () => {
   const [selectedOrderForPin, setSelectedOrderForPin] = useState(null);
   const [pinVerifying, setPinVerifying] = useState(false);
 
+  // Audio notification ref
+  const audioContextRef = useRef(null);
+  const alarmIntervalRef = useRef(null);
+
   useEffect(() => {
     // Wait for auth to finish loading
     if (authLoading) return;
@@ -143,6 +147,72 @@ const RiderDashboard = () => {
     sessionStorage.setItem('availableOrders', JSON.stringify(availableOrders));
   }, [availableOrders]);
   
+  // Function to play alarm sound for 10 seconds
+  const playAlarmSound = () => {
+    try {
+      // Stop any existing alarm
+      if (alarmIntervalRef.current) {
+        clearInterval(alarmIntervalRef.current);
+      }
+
+      // Create audio context if not exists
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      const audioContext = audioContextRef.current;
+      let beepCount = 0;
+      const maxBeeps = 20; // Play beep 20 times in 10 seconds (every 0.5s)
+
+      // Function to create a single beep
+      const playBeep = () => {
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        // Alarm sound: alternating between 800Hz and 1000Hz
+        oscillator.frequency.value = beepCount % 2 === 0 ? 800 : 1000;
+        oscillator.type = 'sine';
+
+        // Volume envelope
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.3);
+
+        beepCount++;
+        if (beepCount >= maxBeeps) {
+          clearInterval(alarmIntervalRef.current);
+          alarmIntervalRef.current = null;
+        }
+      };
+
+      // Play first beep immediately
+      playBeep();
+
+      // Then play every 500ms
+      alarmIntervalRef.current = setInterval(playBeep, 500);
+
+    } catch (error) {
+      console.error('Error playing alarm sound:', error);
+    }
+  };
+
+  // Cleanup function for alarm
+  useEffect(() => {
+    return () => {
+      if (alarmIntervalRef.current) {
+        clearInterval(alarmIntervalRef.current);
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
+
   const fetchOrders = async () => {
     try {
       setLoading(true);
@@ -319,6 +389,10 @@ const RiderDashboard = () => {
 
     socket.on('new_order_available', (orderData) => {
       console.log('📦 New order available:', orderData);
+      
+      // Play alarm sound
+      playAlarmSound();
+      
       setAvailableOrders((prev) => {
         const updated = [orderData, ...prev];
         console.log('📋 Updated available orders:', updated.length);
