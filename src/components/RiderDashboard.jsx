@@ -262,10 +262,37 @@ const RiderDashboard = () => {
     try {
       const newAvailability = !isAvailable;
       
-      // Check if rider is trying to go available without location permission
-      if (newAvailability && !hasLocationPermission) {
-        toast.error('Please enable location permissions to become available for deliveries');
-        return;
+      // Check if rider is trying to go available - verify location permission in real-time
+      if (newAvailability) {
+        if (!('geolocation' in navigator)) {
+          toast.error('Geolocation is not supported by your browser');
+          return;
+        }
+
+        // Check location permission by attempting to get current position
+        try {
+          await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                setCurrentLocation({
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude,
+                });
+                setHasLocationPermission(true);
+                resolve(position);
+              },
+              (error) => {
+                setHasLocationPermission(false);
+                reject(error);
+              },
+              { timeout: 5000 }
+            );
+          });
+        } catch (error) {
+          console.error('❌ Location permission error:', error);
+          toast.error('Please enable location permissions to become available for deliveries');
+          return;
+        }
       }
 
       // Check if rider has assigned orders when trying to go unavailable
@@ -299,13 +326,13 @@ const RiderDashboard = () => {
         // Join or leave rider pool based on availability
         if (newAvailability && currentLocation) {
           joinRiderPool(user.id, currentLocation);
-          toast.success('You are now available for deliveries');
+          toast.success('Made available successfully! You can now receive orders.');
         } else {
           leaveRiderPool(user.id);
           // Clear available orders when going unavailable
           setAvailableOrders([]);
           sessionStorage.removeItem('availableOrders');
-          toast.success('You are now unavailable for deliveries');
+          toast.success('Made unavailable successfully! You won\'t receive new orders.');
         }
       }
     } catch (error) {
