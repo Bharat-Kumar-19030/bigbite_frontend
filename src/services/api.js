@@ -138,11 +138,25 @@ class ApiService {
     });
   }
 
+  async createPendingOrder(orderData) {
+    return this.request('/orders/pending', {
+      method: 'POST',
+      body: JSON.stringify(orderData),
+    });
+  }
+
+  async confirmOrder(orderId, paymentDetails) {
+    return this.request(`/orders/${orderId}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify(paymentDetails),
+    });
+  }
+
   // Payment endpoints
-  async createPaymentOrder(amount) {
+  async createPaymentOrder(amount, referenceId = null) {
     return this.request('/payment/create-order', {
       method: 'POST',
-      body: JSON.stringify({ amount }),
+      body: JSON.stringify({ amount, referenceId }),
     });
   }
 

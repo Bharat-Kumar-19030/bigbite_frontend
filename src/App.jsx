@@ -15,6 +15,7 @@ import WishlistManager from './components/WishlistManager';
 import RiderDashboard from './components/RiderDashboard';
 import MyOrders from './components/MyOrders';
 import OrderTracking from './components/OrderTracking';
+import PaymentCallback from './components/PaymentCallback';
 import Chatbot from './components/Chatbot';
 import AboutUs from './components/AboutUs';
 import PrivacyPolicy from './components/PrivacyPolicy';
@@ -50,6 +51,7 @@ function App() {
         <Route path="/wishlists" element={<WishlistManager/>}/>
         <Route path="/orders" element={<MyOrders/>}/>
         <Route path="/track-order/:orderId" element={<OrderTracking/>}/>
+        <Route path="/payment-callback" element={<PaymentCallback/>}/>
         <Route path="/restaurant-dashboard" element={<RestaurantDashboard/>}/>
         <Route path="/restaurant-registration" element={<RestaurantRegistration/>}/>
         <Route path="/restaurant/:restaurantId" element={<RestaurantPage/>}/>
