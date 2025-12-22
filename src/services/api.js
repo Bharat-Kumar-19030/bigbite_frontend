@@ -26,9 +26,14 @@ class ApiService {
   async request(endpoint, options = {}) {
     const url = `${this.baseURL}${endpoint}`;
     
-    // Check token validity before making request
-    if (!this.isTokenValid()) {
+    // Only check token validity for protected endpoints (skip for login/signup)
+    const publicEndpoints = ['/auth/login', '/auth/signup', '/auth/google'];
+    const isPublicEndpoint = publicEndpoints.some(ep => endpoint.includes(ep));
+    
+    if (!isPublicEndpoint && !this.isTokenValid()) {
       console.error('API Request blocked: Invalid or expired token');
+      // Clear invalid token
+      localStorage.removeItem('bigbite_token');
       throw new Error('Authentication required. Please log in again.');
     }
     
@@ -53,6 +58,10 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
+        // If unauthorized, clear token and ask to re-login
+        if (response.status === 401) {
+          localStorage.removeItem('bigbite_token');
+        }
         throw new Error(data.message || 'Something went wrong');
       }
 

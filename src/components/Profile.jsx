@@ -249,10 +249,14 @@ const Profile = () => {
         address: dataToSend.address,
       });
 
+      const token = localStorage.getItem('bigbite_token');
+      console.log('🔑 Token for Profile Update:', token ? `${token.substring(0, 20)}...` : 'No token');
+
       const response = await fetch(`${SERVER_URL}/api/auth/update-profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`, // Add Authorization header
         },
         credentials: 'include',
         body: JSON.stringify(dataToSend),
