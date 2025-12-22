@@ -546,6 +546,16 @@ const RestaurantDashboard = () => {
                       </div>
                     )}
 
+                    {/* Pickup PIN - Show on all order cards for easy access */}
+                    {order.pickupPin && ['accepted', 'rider_assigned', 'preparing', 'ready'].includes(order.status) && (
+                      <div className="mb-4 p-2 bg-blue-50 border border-blue-300 rounded-lg">
+                        <p className="text-xs font-semibold text-blue-900 mb-1">🔒 Pickup PIN</p>
+                        <p className="text-xl font-bold text-blue-700 text-center tracking-widest">
+                          {order.pickupPin}
+                        </p>
+                      </div>
+                    )}
+
                     {/* Action Buttons - Only show for pending orders */}
                     {activeOrderTab === 'pending' && order.status === 'pending' && (
                       <div className="flex gap-3">

@@ -82,6 +82,13 @@ const RiderDashboard = () => {
     ratingCount: 0,
     activeOrders: 0,
   });
+  
+  // PIN verification states
+  const [showPickupPinModal, setShowPickupPinModal] = useState(false);
+  const [showDeliveryPinModal, setShowDeliveryPinModal] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [selectedOrderForPin, setSelectedOrderForPin] = useState(null);
+  const [pinVerifying, setPinVerifying] = useState(false);
 
   useEffect(() => {
     // Wait for auth to finish loading
@@ -418,32 +425,99 @@ const RiderDashboard = () => {
   };
 
   const markAsDelivered = async (orderId) => {
-    try {
-      // Optimistically update the UI immediately
-      setOrders((prevOrders) =>
-        prevOrders.map((order) =>
-          order._id === orderId ? { ...order, status: 'delivered' } : order
-        )
-      );
+    // Show delivery PIN modal instead of directly marking as delivered
+    setSelectedOrderForPin(orderId);
+    setShowDeliveryPinModal(true);
+    setPinInput('');
+  };
 
-      const response = await axios.patch(
-        `${import.meta.env.VITE_SERVER_URL}/api/orders/${orderId}/status`,
-        { status: 'delivered' },
+  const handleStartDelivery = (orderId) => {
+    // Show pickup PIN modal
+    setSelectedOrderForPin(orderId);
+    setShowPickupPinModal(true);
+    setPinInput('');
+  };
+
+  const verifyPickupPin = async () => {
+    if (!pinInput || pinInput.length !== 4) {
+      toast.error('Please enter a 4-digit PIN');
+      return;
+    }
+
+    try {
+      setPinVerifying(true);
+      const response = await axios.post(
+        `${import.meta.env.VITE_SERVER_URL}/api/orders/${selectedOrderForPin}/verify-pickup-pin`,
+        { pin: pinInput },
         { withCredentials: true }
       );
-      
+
       if (response.data.success) {
-        toast.success('Order marked as delivered!');
-        // Move to completed section after a delay
+        toast.success('Pickup verified! Starting delivery...');
+        setShowPickupPinModal(false);
+        setPinInput('');
+        setSelectedOrderForPin(null);
+        
+        // Update local state and then update to on_the_way
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order._id === selectedOrderForPin ? { ...order, status: 'picked_up' } : order
+          )
+        );
+        
+        // Update to on_the_way after pickup
+        setTimeout(() => {
+          updateOrderStatus(selectedOrderForPin, 'on_the_way');
+        }, 1000);
+        
+        fetchOrders();
+      }
+    } catch (error) {
+      console.error('Error verifying pickup PIN:', error);
+      toast.error(error.response?.data?.message || 'Invalid PIN. Please try again.');
+    } finally {
+      setPinVerifying(false);
+    }
+  };
+
+  const verifyDeliveryPin = async () => {
+    if (!pinInput || pinInput.length !== 4) {
+      toast.error('Please enter a 4-digit PIN');
+      return;
+    }
+
+    try {
+      setPinVerifying(true);
+      const response = await axios.post(
+        `${import.meta.env.VITE_SERVER_URL}/api/orders/${selectedOrderForPin}/verify-delivery-pin`,
+        { pin: pinInput },
+        { withCredentials: true }
+      );
+
+      if (response.data.success) {
+        toast.success('Delivery completed successfully! 🎉');
+        setShowDeliveryPinModal(false);
+        setPinInput('');
+        setSelectedOrderForPin(null);
+        
+        // Update local state
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order._id === selectedOrderForPin ? { ...order, status: 'delivered' } : order
+          )
+        );
+        
+        // Refresh stats and orders
         setTimeout(() => {
           fetchOrders();
+          fetchRiderStats();
         }, 1000);
       }
     } catch (error) {
-      console.error('Error marking order as delivered:', error);
-      toast.error('Failed to mark order as delivered');
-      // Revert optimistic update on error
-      fetchOrders();
+      console.error('Error verifying delivery PIN:', error);
+      toast.error(error.response?.data?.message || 'Invalid PIN. Please try again.');
+    } finally {
+      setPinVerifying(false);
     }
   };
 
@@ -768,9 +842,9 @@ const RiderDashboard = () => {
                       )}
                       {activeTab === 'assigned' && (
                         <>
-                          {['rider_assigned', 'preparing', 'ready', 'picked_up'].includes(order.status) && (
+                          {['rider_assigned', 'preparing', 'ready'].includes(order.status) && (
                             <button
-                              onClick={() => updateOrderStatus(order._id, 'on_the_way')}
+                              onClick={() => handleStartDelivery(order._id)}
                               className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
                             >
                               🚚 Start Delivery
@@ -1066,6 +1140,124 @@ const RiderDashboard = () => {
                       Close
                     </button>
                   </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Pickup PIN Verification Modal */}
+        <AnimatePresence>
+          {showPickupPinModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              onClick={() => !pinVerifying && setShowPickupPinModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full"
+              >
+                <h3 className="text-2xl font-bold text-gray-900 mb-4 text-center">
+                  🔒 Enter Pickup PIN
+                </h3>
+                <p className="text-gray-600 text-center mb-6">
+                  Ask the restaurant for the 4-digit pickup PIN to verify you're picking up the order
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength="4"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                  onKeyPress={(e) => e.key === 'Enter' && !pinVerifying && verifyPickupPin()}
+                  placeholder="Enter 4-digit PIN"
+                  className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-6 tracking-widest"
+                  autoFocus
+                  disabled={pinVerifying}
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={verifyPickupPin}
+                    disabled={pinVerifying || pinInput.length !== 4}
+                    className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {pinVerifying ? 'Verifying...' : 'Verify & Start Delivery'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPickupPinModal(false);
+                      setPinInput('');
+                    }}
+                    disabled={pinVerifying}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Delivery PIN Verification Modal */}
+        <AnimatePresence>
+          {showDeliveryPinModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              onClick={() => !pinVerifying && setShowDeliveryPinModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full"
+              >
+                <h3 className="text-2xl font-bold text-gray-900 mb-4 text-center">
+                  🔒 Enter Delivery PIN
+                </h3>
+                <p className="text-gray-600 text-center mb-6">
+                  Ask the customer for the 4-digit delivery PIN to complete the delivery
+                </p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength="4"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
+                  onKeyPress={(e) => e.key === 'Enter' && !pinVerifying && verifyDeliveryPin()}
+                  placeholder="Enter 4-digit PIN"
+                  className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent mb-6 tracking-widest"
+                  autoFocus
+                  disabled={pinVerifying}
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={verifyDeliveryPin}
+                    disabled={pinVerifying || pinInput.length !== 4}
+                    className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                  >
+                    {pinVerifying ? 'Verifying...' : 'Verify & Complete Delivery'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowDeliveryPinModal(false);
+                      setPinInput('');
+                    }}
+                    disabled={pinVerifying}
+                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
                 </div>
               </motion.div>
             </motion.div>

@@ -171,6 +171,21 @@ class ApiService {
     return this.request(`/payment/status/${orderId}`);
   }
 
+  // PIN Verification endpoints
+  async verifyPickupPin(orderId, pin) {
+    return this.request(`/orders/${orderId}/verify-pickup-pin`, {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    });
+  }
+
+  async verifyDeliveryPin(orderId, pin) {
+    return this.request(`/orders/${orderId}/verify-delivery-pin`, {
+      method: 'POST',
+      body: JSON.stringify({ pin }),
+    });
+  }
+
   // Restaurant endpoints
   async getMenuItems() {
     return this.request('/restaurant/menu');

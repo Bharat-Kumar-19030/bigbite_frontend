@@ -7,9 +7,9 @@ const KitchenDetailsModal = () => {
   const navigate = useNavigate();
 
   const handleUpdateDetails = () => {
-    setShowKitchenDetailsModal(false);
+    setShowKitchenDetailsModal(false); 
     navigate('/profile');
-  };
+  }; 
 
   const handleCancel = () => {
     setShowKitchenDetailsModal(false);

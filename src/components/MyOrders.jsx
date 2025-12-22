@@ -45,7 +45,7 @@ const MyOrders = () => {
 
     const handleOrderAccepted = (data) => {
       console.log('✅ Order accepted event:', data);
-      toast.success(`${data.message}\nRider: ${data.riderName}`);
+      toast(`Rider ${data.riderName} accepted your order!`);
       updateOrderStatus(data.orderId, data.status, {
         rider: {
           name: data.riderName,
@@ -56,7 +56,10 @@ const MyOrders = () => {
 
     const handleOrderStatusUpdate = (data) => {
       console.log('📦 Order status changed:', data);
-      toast(data.message, { icon: '📦' });
+      // Skip toast for rider_assigned status as it's handled by order_accepted
+      if (data.status !== 'rider_assigned' && data.message) {
+        toast(data.message);
+      }
       updateOrderStatus(data.orderId, data.status);
     };
 
@@ -276,6 +279,21 @@ console.log("filtered orders: ",filteredOrders)
                       ))}
                     </div>
                   </div>
+
+                  {/* Delivery PIN - Show when rider is assigned or later */}
+                  {order.deliveryPin && ['accepted', 'rider_assigned', 'preparing', 'ready', 'picked_up', 'on_the_way'].includes(order.status) && (
+                    <div className="border-t border-gray-200 pt-4 mb-4">
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-300 rounded-lg p-3">
+                        <h4 className="text-xs font-semibold text-green-900 mb-1 flex items-center gap-1">
+                          <span>🔒</span>
+                          Your Delivery PIN
+                        </h4>
+                        <p className="text-2xl font-bold text-green-700 text-center tracking-widest">
+                          {order.deliveryPin}
+                        </p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Delivery Address */}
                   <div className="border-t border-gray-200 pt-4 mb-4">
