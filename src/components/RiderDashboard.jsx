@@ -147,6 +147,40 @@ const RiderDashboard = () => {
     sessionStorage.setItem('availableOrders', JSON.stringify(availableOrders));
   }, [availableOrders]);
   
+  // Fetch available orders on mount if on available tab
+  useEffect(() => {
+    if (activeTab === 'available' && !authLoading) {
+      fetchOrders();
+    }
+  }, []); // Run only once on mount
+  
+  // Auto-refresh available orders every 30 seconds when on available tab
+  useEffect(() => {
+    if (activeTab !== 'available') return;
+
+    const refreshInterval = setInterval(async () => {
+      try {
+        const response = await axios.get(
+          `${import.meta.env.VITE_SERVER_URL}/api/orders/available`,
+          { withCredentials: true }
+        );
+        if (response.data.success) {
+          // Merge with existing orders from sessionStorage, removing duplicates
+          setAvailableOrders(prevOrders => {
+            const newOrders = response.data.orders;
+            const existingIds = new Set(prevOrders.map(o => o.orderId || o._id));
+            const uniqueNew = newOrders.filter(o => !existingIds.has(o.orderId || o._id));
+            return [...prevOrders, ...uniqueNew];
+          });
+        }
+      } catch (error) {
+        console.error('Error refreshing available orders:', error);
+      }
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(refreshInterval);
+  }, [activeTab]);
+
   // Function to play alarm sound for 10 seconds
   const playAlarmSound = () => {
     try {
@@ -217,7 +251,16 @@ const RiderDashboard = () => {
     try {
       setLoading(true);
       
-      if (activeTab === 'assigned') {
+      if (activeTab === 'available') {
+        // Fetch all available orders (awaiting_rider status)
+        const response = await axios.get(
+          `${import.meta.env.VITE_SERVER_URL}/api/orders/available`,
+          { withCredentials: true }
+        );
+        if (response.data.success) {
+          setAvailableOrders(response.data.orders);
+        }
+      } else if (activeTab === 'assigned') {
         // Fetch rider's assigned orders
         const response = await axios.get(
           `${import.meta.env.VITE_SERVER_URL}/api/orders/rider/${user.id}`,
@@ -326,6 +369,14 @@ const RiderDashboard = () => {
         // Join or leave rider pool based on availability
         if (newAvailability && currentLocation) {
           joinRiderPool(user.id, currentLocation);
+          // Fetch all available orders when becoming available
+          const ordersResponse = await axios.get(
+            `${import.meta.env.VITE_SERVER_URL}/api/orders/available`,
+            { withCredentials: true }
+          );
+          if (ordersResponse.data.success) {
+            setAvailableOrders(ordersResponse.data.orders);
+          }
           toast.success('Made available successfully! You can now receive orders.');
         } else {
           leaveRiderPool(user.id);
