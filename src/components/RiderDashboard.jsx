@@ -351,6 +351,11 @@ const RiderDashboard = () => {
 
   // Fetch all order counts independently for real-time badge updates
   const fetchAllOrderCounts = async () => {
+    if (!user || !user.id) {
+      console.log('⚠️ User not loaded yet, skipping order counts fetch');
+      return;
+    }
+    
     try {
       // Fetch assigned and completed orders
       const response = await axios.get(
@@ -576,21 +581,53 @@ const RiderDashboard = () => {
     socket.on('order_taken', (data) => {
       console.log('🚫 Order taken by another rider:', data.orderId);
       setAvailableOrders((prev) => {
-        const updated = prev.filter((order) => order.orderId !== data.orderId);
-        console.log(`📉 Removed order, ${prev.length} -> ${updated.length} orders`);
+        const updated = prev.filter((order) => order._id !== data.orderId && order.orderId !== data.orderId);
+        console.log(`📉 Removed order ${data.orderId}, ${prev.length} -> ${updated.length} orders`);
         return updated;
       });
+      // Also refresh all order counts to ensure badges are accurate
+      fetchAllOrderCounts();
     });
 
     // Listen for order status changes to refresh assigned orders
     socket.on('order_status_changed', (data) => {
       console.log('📊 Order status changed:', data);
+      
+      // Immediately update local state for real-time UI updates
+      const { orderId, status } = data;
+      
+      // If order is delivered, move it from assigned to completed
+      if (status === 'delivered') {
+        // Remove from assigned orders
+        setAssignedOrders((prev) => {
+          const orderToMove = prev.find(order => order._id === orderId);
+          if (orderToMove) {
+            // Add to completed orders
+            setCompletedOrders((prevCompleted) => [{...orderToMove, status: 'delivered'}, ...prevCompleted]);
+          }
+          return prev.filter(order => order._id !== orderId);
+        });
+        
+        // Also update the general orders state
+        setOrders((prev) => 
+          prev.map(order => order._id === orderId ? { ...order, status: 'delivered' } : order)
+        );
+      } else {
+        // For other status changes, just update the status in assigned orders
+        setAssignedOrders((prev) =>
+          prev.map(order => order._id === orderId ? { ...order, status } : order)
+        );
+        setOrders((prev) =>
+          prev.map(order => order._id === orderId ? { ...order, status } : order)
+        );
+      }
+      
       // Always refresh all order counts for real-time badge updates
       fetchAllOrderCounts();
       
-      // Also refresh current tab view if needed
+      // Also refresh current tab view if needed (to sync with backend)
       if (activeTab === 'assigned' || activeTab === 'completed') {
-        fetchOrders();
+        setTimeout(() => fetchOrders(), 500); // Small delay to ensure DB is updated
       }
       // Refresh stats when order status changes to update active orders count
       fetchRiderStats();
@@ -625,8 +662,8 @@ const RiderDashboard = () => {
       toast.success('Order accepted!');
       // Remove from available orders
       setAvailableOrders((prev) => {
-        const updated = prev.filter((order) => order.orderId !== orderId);
-        console.log(`📉 Removed accepted order, ${prev.length} -> ${updated.length} orders`);
+        const updated = prev.filter((order) => order._id !== orderId && order.orderId !== orderId);
+        console.log(`📉 Removed accepted order ${orderId}, ${prev.length} -> ${updated.length} orders`);
         return updated;
       });
       // Switch to assigned tab and fetch after state updates
@@ -635,6 +672,7 @@ const RiderDashboard = () => {
       setTimeout(() => {
         fetchOrders();
         fetchRiderStats(); // Refresh stats to show updated active orders
+        fetchAllOrderCounts(); // Refresh all order counts to update badges
       }, 1000); // Increased delay to ensure DB is updated
     } catch (error) {
       console.error('Error accepting order:', error);
@@ -1166,7 +1204,7 @@ const RiderDashboard = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+              className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
               onClick={() => setViewingOrder(null)}
             >
               <motion.div
@@ -1429,7 +1467,7 @@ const RiderDashboard = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/90  flex items-center justify-center z-50 p-4"
               onClick={() => !pinVerifying && setShowPickupPinModal(false)}
             >
               <motion.div
@@ -1453,7 +1491,7 @@ const RiderDashboard = () => {
                   onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ''))}
                   onKeyPress={(e) => e.key === 'Enter' && !pinVerifying && verifyPickupPin()}
                   placeholder="Enter 4-digit PIN"
-                  className="w-full px-4 py-3 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-6 tracking-widest"
+                  className="w-full bg-green-50 px-4 py-3 text-center text-2xl font-bold border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:outline-none focus:border-transparent mb-6 tracking-widest"
                   autoFocus
                   disabled={pinVerifying}
                 />
@@ -1461,7 +1499,7 @@ const RiderDashboard = () => {
                   <button
                     onClick={verifyPickupPin}
                     disabled={pinVerifying || pinInput.length !== 4}
-                    className="flex-1 bg-blue-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-blue-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    className="flex-1 bg-green-600 text-white py-3 px-4 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
                   >
                     {pinVerifying ? 'Verifying...' : 'Verify & Start Delivery'}
                   </button>
@@ -1488,7 +1526,7 @@ const RiderDashboard = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+              className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
               onClick={() => !pinVerifying && setShowDeliveryPinModal(false)}
             >
               <motion.div

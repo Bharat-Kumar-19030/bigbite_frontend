@@ -75,18 +75,31 @@ const RestaurantDashboard = () => {
   }, [user, socket]);
 
   const fetchAllOrders = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('⚠️ Cannot fetch orders - user ID not available');
+      return;
+    }
     try {
+      console.log('🔄 Fetching orders for restaurant:', user.id);
       const response = await axios.get(
         `${SERVER_URL}/api/orders/restaurant/${user.id}`,
         { withCredentials: true }
       );
+      console.log('📥 Orders API Response:', response.data);
       if (response.data.success) {
-        setAllOrders(response.data.orders);
         console.log('📊 Fetched orders:', response.data.orders.length);
+        console.log('📋 Order details:', response.data.orders.map(o => ({
+          id: o._id,
+          status: o.status,
+          customer: o.customer?.name,
+          total: o.totalAmount
+        })));
+        setAllOrders(response.data.orders);
+      } else {
+        console.error('❌ Orders API returned success: false');
       }
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('❌ Error fetching orders:', error.response?.data || error.message);
     }
   }, [user?.id]);
 
@@ -353,13 +366,11 @@ const RestaurantDashboard = () => {
   const getFilteredOrders = () => {
     switch (activeOrderTab) {
       case 'pending':
-        // Only show truly pending orders, exclude if already accepted or assigned
-        return allOrders.filter((o) => 
-          o.status === 'pending' && 
-          !['accepted', 'rider_assigned', 'preparing', 'ready', 'picked_up', 'on_the_way', 'delivered'].includes(o.status)
-        );
+        // Only show truly pending orders that haven't been accepted yet
+        return allOrders.filter((o) => o.status === 'pending');
       case 'accepted':
-        return allOrders.filter(o => o.status === 'accepted');
+        // Show orders accepted by restaurant but not yet picked up by rider
+        return allOrders.filter(o => o.status === 'awaiting_rider');
       case 'assigned':
         return allOrders.filter(o => ['rider_assigned', 'preparing', 'ready', 'picked_up', 'on_the_way'].includes(o.status));
       case 'delivered':
@@ -446,7 +457,7 @@ const RestaurantDashboard = () => {
             <nav className="flex -mb-px justify-between w-full overflow-auto scroll scrollbar-hide">
               {[
                 { key: 'pending', label: 'Pending', count: allOrders.filter(o => o.status === 'pending').length },
-                { key: 'accepted', label: 'Accepted', count: allOrders.filter(o => o.status === 'accepted').length },
+                { key: 'accepted', label: 'Accepted', count: allOrders.filter(o => o.status === 'awaiting_rider').length },
                 { key: 'assigned', label: 'Assigned/Active', count: allOrders.filter(o => ['rider_assigned', 'preparing', 'ready', 'picked_up', 'on_the_way'].includes(o.status)).length },
                 { key: 'delivered', label: 'Delivered', count: allOrders.filter(o => o.status === 'delivered').length },
                 { key: 'rejected', label: 'Rejected/Cancelled', count: allOrders.filter(o => ['rejected', 'auto_rejected', 'cancelled'].includes(o.status)).length },

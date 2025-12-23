@@ -283,12 +283,12 @@ console.log("filtered orders: ",filteredOrders)
                   {/* Delivery PIN - Show when rider is assigned or later */}
                   {order.deliveryPin && ['accepted', 'rider_assigned', 'preparing', 'ready', 'picked_up', 'on_the_way'].includes(order.status) && (
                     <div className="border-t border-gray-200 pt-4 mb-4">
-                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-300 rounded-lg p-3">
+                      <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-300 rounded-lg p-3 flex gap-4 items-center justify-between">
                         <h4 className="text-xs font-semibold text-green-900 mb-1 flex items-center gap-1">
-                          <span>🔒</span>
-                          Your Delivery PIN
+                          
+                          Your Delivery Pin
                         </h4>
-                        <p className="text-2xl font-bold text-green-700 text-center tracking-widest">
+                        <p className="text-sm font-bold text-green-700 text-center tracking-widest">
                           {order.deliveryPin}
                         </p>
                       </div>
