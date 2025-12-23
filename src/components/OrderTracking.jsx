@@ -75,8 +75,12 @@ const OrderTracking = () => {
     
     // Join order tracking room when component mounts
     if (socket && orderId) {
+      console.log('� Socket Status:', socket.connected ? 'Connected' : 'Disconnected');
       console.log('📍 Joining order tracking room:', orderId);
       joinOrderRoom(orderId);
+      console.log('✅ Join order room request sent for:', orderId);
+    } else {
+      console.log('⚠️ Cannot join order room - Socket:', !!socket, 'OrderId:', orderId);
     }
 
     return () => {
@@ -159,15 +163,29 @@ const OrderTracking = () => {
     };
 
     const handleRiderLocationLive = (data) => {
-      console.log('📍 Rider live location:', data);
+      console.log('� ========== RIDER LOCATION UPDATE RECEIVED ==========');
+      console.log('📦 Order ID (data):', data.orderId);
+      console.log('📦 Order ID (current):', orderId);
+      console.log('📍 New Coordinates:', {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        timestamp: data.timestamp
+      });
+      
       if (data.orderId === orderId || data.orderId?.toString() === orderId) {
+        console.log('✅ Order ID matches! Updating rider location...');
         const location = {
           latitude: data.latitude,
           longitude: data.longitude
         };
         setRiderLocation(location);
         setMapCenter([data.latitude, data.longitude]);
+        console.log('✅ Rider location state updated to:', location);
+        console.log('✅ Map center updated to:', [data.latitude, data.longitude]);
+      } else {
+        console.log('❌ Order ID mismatch - ignoring location update');
       }
+      console.log('🚀 ====================================================');
     };
 
     const handleOrderStatus = (orderData) => {
@@ -184,8 +202,16 @@ const OrderTracking = () => {
     socket.on('order_accepted', handleOrderAccepted);
     socket.on('rider_location_live', handleRiderLocationLive);
     socket.on('order_status', handleOrderStatus);
+    
+    console.log('🎧 All socket listeners registered:');
+    console.log('   - order_status_changed ✅');
+    console.log('   - order_status_update ✅');
+    console.log('   - order_accepted ✅');
+    console.log('   - rider_location_live ✅ (TRACKING RIDER LOCATION)');
+    console.log('   - order_status ✅');
 
     return () => {
+      console.log('🔇 Removing socket listeners for order:', orderId);
       socket.off('order_status_changed', handleStatusUpdate);
       socket.off('order_status_update', handleStatusUpdate);
       socket.off('order_accepted', handleOrderAccepted);
