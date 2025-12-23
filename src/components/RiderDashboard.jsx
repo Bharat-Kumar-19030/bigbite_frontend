@@ -514,9 +514,10 @@ const RiderDashboard = () => {
           setCurrentLocation(coords);
           setHasLocationPermission(true); // Mark permission as granted
           
-          // Join rider pool with actual location if available
-          if (isAvailable && user?.id) {
+          // Join rider pool if available OR has assigned orders (needed for location broadcasting)
+          if ((isAvailable || hasAssignedOrders) && user?.id) {
             console.log('✅ Joining rider pool with ID:', user.id);
+            console.log('   Reason:', isAvailable ? 'Available' : 'Has assigned orders');
             joinRiderPool(user.id, coords);
           }
           
@@ -542,20 +543,28 @@ const RiderDashboard = () => {
               longitude: position.coords.longitude,
             };
             
-            console.log('📍 Updating location:', coords);
+            console.log('� ========== RIDER SENDING LOCATION ==========');
+            console.log('📍 Rider Coordinates:', coords);
+            console.log('   Latitude:', coords.latitude);
+            console.log('   Longitude:', coords.longitude);
+            console.log('👤 Rider ID:', user?.id);
+            console.log('📦 Active Orders Count:', assignedOrders?.length || 0);
             setCurrentLocation(coords);
             
             // Update location in rider pool - always send if rider has ID
             if (user?.id) {
               updateRiderLocation(user.id, coords);
-              console.log('✅ Location update sent for rider:', user.id);
+              console.log('✅ Location update emitted via socket');
+              console.log('   Socket Event: rider_location_update');
+              console.log('   Payload: { riderId:', user.id, ', coordinates:', coords, '}');
             }
+            console.log('🚀 ============================================');
           },
           (error) => {
             console.error('❌ Error updating location:', error);
           }
         );
-      }, 5000); // Update every 5 seconds
+      }, 10000); // Update every 10 seconds
 
       return () => clearInterval(locationInterval);
     } else {

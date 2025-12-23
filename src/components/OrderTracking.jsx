@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
@@ -44,8 +44,15 @@ const MapUpdater = ({ center }) => { // this function does the panning of map to
   //here map gets the instance of the map created by MapContainer
   const map = useMap();
   useEffect(() => {
-    if (center) { // center is an array of latitude and longitude
-      map.setView(center, 13); // 13 is the zoom level
+    if (center && center[0] && center[1]) { // center is an array of latitude and longitude
+      console.log('🗺️ MAP CENTER UPDATE');
+      console.log('   New Center:', center);
+      console.log('   [Lat, Lng]:', [center[0], center[1]]);
+      map.setView(center, map.getZoom(), {
+        animate: true,
+        duration: 1
+      }); // Keep current zoom level with animation
+      console.log('✅ Map view updated with animation');
     }
   }, [center, map]);
   return null;
@@ -61,6 +68,25 @@ const OrderTracking = () => {
   const [loading, setLoading] = useState(true);
   const [riderLocation, setRiderLocation] = useState(null);
   const [mapCenter, setMapCenter] = useState([28.6139, 77.2090]); // Default: Delhi
+  const roomJoinedRef = useRef(false); // Track if room is already joined
+  const socketIdRef = useRef(null); // Track socket ID to detect reconnections
+
+  // Debug: Log when rider location state changes
+  useEffect(() => {
+    if (riderLocation) {
+      console.log('🔄 RIDER LOCATION STATE CHANGED:');
+      console.log('   New riderLocation:', riderLocation);
+      console.log('   Latitude:', riderLocation.latitude);
+      console.log('   Longitude:', riderLocation.longitude);
+    }
+  }, [riderLocation]);
+
+  // Debug: Log when map center changes
+  useEffect(() => {
+    console.log('🔄 MAP CENTER STATE CHANGED:');
+    console.log('   New mapCenter:', mapCenter);
+    console.log('   [Lat, Lng]:', mapCenter);
+  }, [mapCenter]);
 
   useEffect(() => {
     // Wait for auth to finish loading
@@ -73,21 +99,48 @@ const OrderTracking = () => {
     
     fetchOrderDetails();
     
-    // Join order tracking room when component mounts
+    // Join order tracking room when socket is available
     if (socket && orderId) {
-      console.log('� Socket Status:', socket.connected ? 'Connected' : 'Disconnected');
-      console.log('📍 Joining order tracking room:', orderId);
-      joinOrderRoom(orderId);
-      console.log('✅ Join order room request sent for:', orderId);
+      const currentSocketId = socket.id;
+      
+      // Check if we need to (re)join the room
+      const needsToJoin = !roomJoinedRef.current || socketIdRef.current !== currentSocketId;
+      
+      if (needsToJoin && socket.connected) {
+        console.log('🔌 Socket Status: Connected (ID:', currentSocketId, ')');
+        console.log('📍 Joining order tracking room:', orderId);
+        joinOrderRoom(orderId);
+        roomJoinedRef.current = true;
+        socketIdRef.current = currentSocketId;
+        console.log('✅ Room joined successfully');
+      } else if (!socket.connected) {
+        // Socket exists but not connected yet
+        console.log('⏳ Socket exists but not connected, waiting...');
+        roomJoinedRef.current = false; // Reset flag
+        
+        const handleConnect = () => {
+          console.log('🔌 Socket reconnected! Now joining room:', orderId);
+          joinOrderRoom(orderId);
+          roomJoinedRef.current = true;
+          socketIdRef.current = socket.id;
+          console.log('✅ Room joined after reconnection');
+        };
+        socket.once('connect', handleConnect);
+        
+        // Cleanup the connect listener
+        return () => {
+          socket.off('connect', handleConnect);
+        };
+      } else {
+        console.log('✅ Already in room, skipping join');
+      }
     } else {
-      console.log('⚠️ Cannot join order room - Socket:', !!socket, 'OrderId:', orderId);
+      console.log('⚠️ Waiting for socket or orderId');
+      console.log('   Socket:', !!socket);
+      console.log('   OrderId:', orderId);
+      roomJoinedRef.current = false;
     }
-
-    return () => {
-      // Socket will handle cleanup on disconnect
-      console.log('📍 Left order tracking room:', orderId);
-    };
-  }, [orderId, user, socket]);
+  }, [orderId, socket, joinOrderRoom]);
 
   // Socket listeners for real-time updates
   useEffect(() => {
