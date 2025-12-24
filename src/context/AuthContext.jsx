@@ -40,9 +40,9 @@ export const AuthProvider=({children})=>{
                 'Authorization': `Bearer ${token}`
             };
             
-            // Add timeout to prevent hanging
+            // Add timeout to prevent hanging (increased from 10s to 30s for slower networks)
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
             
             const res=await fetch(`${SERVER_URL}/api/auth/me`,{
                 credentials:"include",
@@ -55,6 +55,12 @@ export const AuthProvider=({children})=>{
             if(res.ok){
                 const data=await res.json()
                 setuser(data.user)
+                
+                // Update token if backend sends a refreshed one
+                if (data.token) {
+                    localStorage.setItem('bigbite_token', data.token);
+                    console.log('✅ Token refreshed from /me endpoint');
+                }
             }
             else{
                 setuser(null)
@@ -65,11 +71,14 @@ export const AuthProvider=({children})=>{
             // Handle timeout or network errors
             console.log("Auth check failed:", error.message);
             setuser(null)
-            // Clear potentially invalid token
+            // Only clear token on timeout or network error - it might be temporary
             if (error.name === 'AbortError') {
-                console.log("Auth check timed out");
+                console.log("Auth check timed out - will retry on next navigation");
+                // Don't clear token on timeout - might be temporary network issue
+            } else {
+                // Clear token only on non-timeout errors
+                localStorage.removeItem('bigbite_token');
             }
-            localStorage.removeItem('bigbite_token');
         }finally{
             setLoading(false)
         }

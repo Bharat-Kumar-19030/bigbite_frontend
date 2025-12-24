@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import api from '../services/api';
 import { useApp } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 const PaymentCallback = () => {
   const [searchParams] = useSearchParams();
@@ -10,9 +11,16 @@ const PaymentCallback = () => {
   const [processing, setProcessing] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState(null); // 'success' or 'failed'
   const { clearCart } = useApp();
+  const { user, loading } = useAuth();
   const hasProcessed = useRef(false); // Prevent duplicate processing
 
   useEffect(() => {
+    // Wait for auth to be ready after redirect from payment page
+    if (loading) {
+      console.log('⏳ Waiting for auth to load after payment redirect...');
+      return;
+    }
+
     // Prevent duplicate processing in React Strict Mode
     if (hasProcessed.current) return;
     hasProcessed.current = true;
@@ -81,7 +89,7 @@ const PaymentCallback = () => {
 
     handlePaymentCallback();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only run once on mount
+  }, [loading]); // Wait for auth loading to complete
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-gray-50 flex items-center justify-center">
