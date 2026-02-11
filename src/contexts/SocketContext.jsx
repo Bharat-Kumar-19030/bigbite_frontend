@@ -29,7 +29,7 @@ export const SocketProvider = ({ children }) => {
     // Initialize socket connection
     const newSocket = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:5000', {
       withCredentials: true,
-      transports: ['websocket', 'polling'],
+      transports: ['polling', 'websocket'],
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
