@@ -25,19 +25,27 @@ export const SocketProvider = ({ children }) => {
     }
 
     console.log('🔄 Initializing socket with user:', user);
+    console.log('🌐 Socket server URL:', import.meta.env.VITE_SERVER_URL);
 
-    // Initialize socket connection
+    // Initialize socket connection with enhanced error handling
     const newSocket = io(import.meta.env.VITE_SERVER_URL || 'http://localhost:5000', {
       withCredentials: true,
-      transports: ['polling', 'websocket'],
+      transports: ['polling', 'websocket'], // Start with polling, upgrade to websocket
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5
+      reconnectionAttempts: 10, // Increased attempts
+      timeout: 20000, // 20 second connection timeout
+      forceNew: false,
+      upgrade: true,
+      rememberUpgrade: true,
     });
 
     newSocket.on('connect', () => {
-      console.log('🔌 Socket connected:', newSocket.id);
+      console.log('✅ Socket connected successfully!');
+      console.log('   Socket ID:', newSocket.id);
+      console.log('   Transport:', newSocket.io.engine.transport.name);
+      console.log('   Server:', import.meta.env.VITE_SERVER_URL);
       console.log('👤 Current user state:', user);
       setConnected(true);
 
@@ -54,14 +62,47 @@ export const SocketProvider = ({ children }) => {
       }
     });
 
-    newSocket.on('disconnect', () => {
-      console.log('❌ Socket disconnected');
+    newSocket.on('disconnect', (reason) => {
+      console.log('❌ Socket disconnected. Reason:', reason);
       setConnected(false);
     });
 
     newSocket.on('connect_error', (error) => {
-      console.error('❌ Socket connection error:', error);
+      console.error('❌ Socket connection error:', error.message);
+      console.error('   Error details:', {
+        type: error.type,
+        description: error.description,
+        context: error.context
+      });
+      console.error('   Server URL:', import.meta.env.VITE_SERVER_URL);
+      console.error('   Attempting to reconnect...');
       setConnected(false);
+    });
+
+    newSocket.on('reconnect_attempt', (attemptNumber) => {
+      console.log(`🔄 Reconnection attempt ${attemptNumber}...`);
+    });
+
+    newSocket.on('reconnect_failed', () => {
+      console.error('❌ All reconnection attempts failed');
+      console.error('   Please check your network connection');
+      console.error('   Server URL:', import.meta.env.VITE_SERVER_URL);
+    });
+    
+    newSocket.on('reconnect', (attemptNumber) => {
+      console.log(`✅ Reconnected after ${attemptNumber} attempts`);
+    });
+
+    newSocket.io.on('error', (error) => {
+      console.error('❌ Socket.IO engine error:', error);
+    });
+
+    newSocket.io.on('ping', () => {
+      console.log('📡 Ping sent to server');
+    });
+
+    newSocket.io.on('pong', (latency) => {
+      console.log(`📡 Pong received. Latency: ${latency}ms`);
     });
 
     setSocket(newSocket);

@@ -43,7 +43,8 @@ class ApiService {
         'Content-Type': 'application/json',
         ...options.headers,
       },
-      credentials: 'include', // Include cookies
+      credentials: 'include', // Include cookies for cross-origin requests
+      mode: 'cors', // Explicitly set CORS mode
     };
 
     // Add token from localStorage if available
