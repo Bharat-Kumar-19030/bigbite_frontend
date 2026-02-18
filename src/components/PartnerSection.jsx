@@ -14,12 +14,21 @@ const PartnerSection = () => {
         if (roleButton) roleButton.click();
       }, 100);
     } else {
-      // User is logged in, navigate to registration page
+      // User is logged in, navigate to registration page or dashboard
       if (role === 'restaurant') {
-        navigate('/restaurant-registration');
+        // If already a restaurant, go to dashboard, otherwise registration
+        if (user.role === 'restaurant') {
+          navigate('/restaurant-dashboard');
+        } else {
+          navigate('/restaurant-registration');
+        }
       } else if (role === 'rider') {
-        // For now, show a message - you can create a RiderRegistration component later
-        alert('Rider registration coming soon!');
+        // If already a rider, go to dashboard, otherwise registration
+        if (user.role === 'rider') {
+          navigate('/rider/dashboard');
+        } else {
+          navigate('/rider-registration');
+        }
       }
     }
   };

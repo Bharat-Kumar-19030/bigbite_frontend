@@ -10,6 +10,7 @@ import Profile from './components/Profile';
 import RestaurantDashboard from './components/RestaurantDashboard';
 import RestaurantPage from './components/RestaurantPage';
 import RestaurantRegistration from './components/RestaurantRegistration';
+import RiderRegistration from './components/RiderRegistration';
 import ViewCart from './components/ViewCart';
 import WishlistManager from './components/WishlistManager';
 import RiderDashboard from './components/RiderDashboard';
@@ -54,6 +55,7 @@ function App() {
         <Route path="/payment-callback" element={<PaymentCallback/>}/>
         <Route path="/restaurant-dashboard" element={<RestaurantDashboard/>}/>
         <Route path="/restaurant-registration" element={<RestaurantRegistration/>}/>
+        <Route path="/rider-registration" element={<RiderRegistration/>}/>
         <Route path="/restaurant/:restaurantId" element={<RestaurantPage/>}/>
         <Route path="/restaurant/:restaurantId/item/:itemId" element={<RestaurantPage/>}/>
         <Route path="/rider/dashboard" element={<RiderDashboard/>}/>
